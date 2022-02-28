@@ -9,6 +9,10 @@ import torchvision.transforms as transforms
 
 from PIL import Image
 
+import matplotlib.pyplot as plt
+import numpy as np
+import tqdm
+
 import transforms as ext_transforms
 from models.enet import ENet
 from train import Train
@@ -149,6 +153,7 @@ def train(train_loader, val_loader, class_weights, class_encoding):
     # We are going to use the CrossEntropyLoss loss function as it's most
     # frequentely used in classification problems with multiple classes which
     # fits the problem. This criterion  combines LogSoftMax and NLLLoss.
+    print(class_weights)
     criterion = nn.CrossEntropyLoss(weight=class_weights)
 
     # ENet authors used Adam as the optimizer
@@ -272,6 +277,8 @@ def predict(model, images, class_encoding):
     utils.imshow_batch(images.data.cpu(), color_predictions)
 
 
+
+
 # Run only if this module is being run directly
 if __name__ == '__main__':
 
@@ -290,6 +297,8 @@ if __name__ == '__main__':
         from data import CamVid as dataset
     elif args.dataset.lower() == 'cityscapes':
         from data import Cityscapes as dataset
+    elif args.dataset.lower() == 'meteomatics':
+        from data import Meteomatics as dataset
     else:
         # Should never happen...but just in case it does
         raise RuntimeError("\"{0}\" is not a supported dataset.".format(
@@ -319,3 +328,58 @@ if __name__ == '__main__':
             print(model)
 
         test(model, test_loader, w_class, class_encoding)
+
+    if args.mode.lower() in {'plot', 'full'}:
+        if args.mode.lower() == 'plot':
+            # Intialize a new ENet model
+            num_classes = len(class_encoding)
+            model = ENet(num_classes).to(device)
+
+        # Initialize a optimizer just so we can retrieve the model from the
+        # checkpoint
+        optimizer = optim.Adam(model.parameters())
+
+        # Load the previoulsy saved model state to the ENet model
+        model = utils.load_checkpoint(model, optimizer, args.save_dir,
+                                      args.name)[0]
+
+        if args.mode.lower() == 'plot':
+            print(model)
+
+        print('Plotting batch by batch')
+        prediction_id = 0
+        for images, targets in tqdm.tqdm(test_loader):
+
+            if prediction_id % 10 > 0:
+                prediction_id += 1
+                continue
+
+            images = images.to(device)
+
+            # Make predictions!
+            model.eval()
+            with torch.no_grad():
+                predictions = model(images)
+
+            # Predictions is one-hot encoded with "num_classes" channels.
+            # Convert it to a single int using the indices where the maximum (1) occurs
+            _, predictions = torch.max(predictions.data, 1)
+
+            label_to_rgb = transforms.Compose([
+                ext_transforms.LongTensorToRGBPIL(class_encoding),
+                transforms.ToTensor()
+            ])
+            color_predictions = utils.batch_transform(predictions.cpu(), label_to_rgb)
+            color_targets = utils.batch_transform(targets.cpu(), label_to_rgb)
+
+            for image, pred, target in zip(images, color_predictions, color_targets):
+                fig, (ax0, ax1, ax2) = plt.subplots(1, 3, figsize=(15, 7))
+                ax0.imshow(np.transpose(image.cpu().numpy(), (1, 2, 0)))
+                ax1.imshow(np.transpose(pred, (1, 2, 0)))
+                ax2.imshow(np.transpose(target.cpu().numpy(), (1, 2, 0)))
+
+                fig.tight_layout()
+                fig.savefig(f'outputs/plots/predictions/{prediction_id:04d}.png')
+                break
+            
+            prediction_id += 1
