@@ -66,6 +66,54 @@ def pil_loader(data_path, label_path):
     return data, label
 
 
+color2index = {
+    (0, 0, 254, 0) : 1,
+    (0, 0, 254, 255) : 2,
+    (50, 101, 254, 255) : 3,
+    (77, 153, 0, 255) : 4,
+    (116, 196, 0, 255) : 5,
+    (153, 0, 0, 255) : 9,
+    (254, 0, 0, 255): 8,
+    (254, 152, 0, 255): 7,
+    (254, 203, 0, 255): 6,
+}
+
+def rgb2mask(img):
+    """Converts the target precipitation as rgb to a mask.
+
+        Keyword arguments:
+         - img (``PIL Image``): Precipitation in rgb.
+
+    Returns a mask of shape H x W x n_precipitation_classes.
+
+    """
+
+    assert len(img.shape) == 3
+    _, _, ch = img.shape
+    assert ch == 4
+
+    W = np.power(256, [[0],[1],[2], [3]])
+
+    img_id = img.dot(W).squeeze(-1) 
+    values = np.unique(img_id)
+
+    mask = np.zeros(img_id.shape)
+
+    for _, c in enumerate(values):
+        try:
+            mask[img_id==c] = color2index[tuple(img[img_id==c][0])] 
+        except:
+            pass
+    return mask
+
+
+def meteo_pil_loader(data_path, label_path):
+    data, label = pil_loader(data_path, label_path)
+    mask = rgb2mask(np.asarray(label).astype(np.uint8)).astype(np.uint8)
+    mask = Image.fromarray(mask)
+    return data, mask
+
+
 def remap(image, old_values, new_values):
     assert isinstance(image, Image.Image) or isinstance(
         image, np.ndarray), "image must be of type PIL.Image or numpy.ndarray"
