@@ -11,7 +11,7 @@ def get_arguments():
     parser.add_argument(
         "--mode",
         "-m",
-        choices=['train', 'test', 'full'],
+        choices=['train', 'test', 'plot', 'full'],
         default='train',
         help=("train: performs training and validation; test: tests the model "
               "found in \"--save-dir\" with name \"--name\" on \"--dataset\"; "
@@ -61,7 +61,7 @@ def get_arguments():
     # Dataset
     parser.add_argument(
         "--dataset",
-        choices=['camvid', 'cityscapes'],
+        choices=['camvid', 'cityscapes', 'meteomatics'],
         default='camvid',
         help="Dataset to use. Default: camvid")
     parser.add_argument(
@@ -73,12 +73,12 @@ def get_arguments():
     parser.add_argument(
         "--height",
         type=int,
-        default=360,
+        default=600,
         help="The image height. Default: 360")
     parser.add_argument(
         "--width",
         type=int,
-        default=480,
+        default=800,
         help="The image width. Default: 480")
     parser.add_argument(
         "--weighing",
@@ -96,7 +96,7 @@ def get_arguments():
     parser.add_argument(
         "--workers",
         type=int,
-        default=4,
+        default=8,
         help="Number of subprocesses to use for data loading. Default: 4")
     parser.add_argument(
         "--print-step",
